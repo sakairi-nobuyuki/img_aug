@@ -192,21 +192,23 @@ def rotate_img (target_dir_path, img_path, xml_path):
 
         ### xmlの編集
         for bb, bb_mod in zip (bb_xml.bboxes, bb_xml.bboxes_mod):
-            r1 = np.array ([bb['x1'], bb['y1']])
-            r2 = np.array ([bb['x2'], bb['y2']])
-            print ("r1:     ", r1)
-            print ("Atrans: ")
-            pprint.pprint (trans)
-            print ("Atrans minor: ")
+            r1 = np.array ([bb['x1'], bb['y1']], dtype=float)
+            r2 = np.array ([bb['x2'], bb['y2']], dtype=float)
+            #print ("r1:     ", r1)
+            #print ("Atrans: ")
+            #pprint.pprint (trans)
+            #print ("Atrans minor: ")
             trans_A_minor = trans[0:2, 0:2]
             trans_A_add   = trans[0:2, 2:3]
             pprint.pprint (trans_A_minor)
             print ("Atrans add: ")
             pprint.pprint (trans_A_add)
             
-            r1_mod = np.dot (trans_A_minor, r1) + trans_A_add
+            r1_mod = np.dot (trans_A_minor, r1.T) + trans_A_add.T
+            r2_mod = np.dot (trans_A_minor, r2.T) + trans_A_add.T
 
-            print (r1, r1_mod)
+            print ("r1: {}\nr1_mod: {}".format (r1, r1_mod))
+            print ("r2: {}\nr2_mod: {}".format (r2, r2_mod))
 
             print (bb['attr'])
             x1s = [bb['x1'], bb['x2']]
