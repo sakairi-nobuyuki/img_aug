@@ -172,7 +172,7 @@ def obtain_rotated_pos (x1, y1, x0, y0, theta):
 def rotate_img (target_dir_path, img_path, xml_path):
     img = cv2.imread (img_path)
     img_w, img_h, _ = img.shape
-    bb_xml = BboxesInXML (xml_path)
+    
 
     center = (int (0.5 * img_w), int (0.5 * img_h))
 
@@ -185,57 +185,36 @@ def rotate_img (target_dir_path, img_path, xml_path):
         trans = cv2.getRotationMatrix2D(center, dtheta , scale)
         img_mod = cv2.warpAffine(img, trans, (img_w, img_h))
         img_path_mod = obtain_mod_path (target_dir_path, 'dtheta_{}_'.format (dtheta), img_path)
-        print ("img size original: ", img_w, img_h)
-        print ("transformation:    ", trans)
-        print ("img size modified: ", img_mod.shape[1], img_mod.shape[0])
+        #print ("img size original: ", img_w, img_h)
+        #print ("transformation:    ", trans)
+        #print ("img size modified: ", img_mod.shape[1], img_mod.shape[0])
         cv2.imwrite (img_path_mod, img_mod)
-
+        img_test     = img
+        img_mod_test = img_mod
         ### xmlの編集
+        bb_xml = BboxesInXML (xml_path)    
         for bb, bb_mod in zip (bb_xml.bboxes, bb_xml.bboxes_mod):
+            #### r1, r2, r3, r4は左上から時計回りに長方形の頂点座標を示す。
             r1 = np.array ([bb['x1'], bb['y1']], dtype=float)
-            r2 = np.array ([bb['x2'], bb['y2']], dtype=float)
-            #print ("r1:     ", r1)
-            #print ("Atrans: ")
-            #pprint.pprint (trans)
-            #print ("Atrans minor: ")
+            r2 = np.array ([bb['x2'], bb['y1']], dtype=float)
+            r3 = np.array ([bb['x2'], bb['y2']], dtype=float)
+            r4 = np.array ([bb['x1'], bb['y2']], dtype=float)
+
+            ### 回転返還の行列はopenCVでゲットしたやつを流用する。面倒なので。
             trans_A_minor = trans[0:2, 0:2]
             trans_A_add   = trans[0:2, 2:3]
-            pprint.pprint (trans_A_minor)
-            print ("Atrans add: ")
-            pprint.pprint (trans_A_add)
-            
-            r1_mod = np.dot (trans_A_minor, r1.T) + trans_A_add.T
-            r2_mod = np.dot (trans_A_minor, r2.T) + trans_A_add.T
+                        
+            r1_mod = np.dot (trans_A_minor, r1.T) + trans_A_add.T * scale
+            r2_mod = np.dot (trans_A_minor, r2.T) + trans_A_add.T * scale
+            r3_mod = np.dot (trans_A_minor, r3.T) + trans_A_add.T * scale
+            r4_mod = np.dot (trans_A_minor, r4.T) + trans_A_add.T * scale
+                        
+            bb_mod['x1'] = np.max (np.mean ([r1_mod[0][0], r4_mod[0][0]]), 0)
+            bb_mod['y1'] = np.max (np.mean ([r1_mod[0][1], r2_mod[0][1]]), 0)
+            bb_mod['x2'] = np.max (np.mean ([r2_mod[0][0], r3_mod[0][0]]), 0)
+            bb_mod['y2'] = np.max (np.mean ([r3_mod[0][1], r4_mod[0][1]]),  0)
 
-            print ("r1: {}\nr1_mod: {}".format (r1, r1_mod))
-            print ("r2: {}\nr2_mod: {}".format (r2, r2_mod))
-
-            print (bb['attr'])
-            x1s = [bb['x1'], bb['x2']]
-            y1s = [bb['y1'], bb['y2']]
-            x_cand = []
-            y_cand = []
-            print ("bb    ", bb, (int (bb['x2'])  - int (bb['x1'])) * (int (bb['y2'])  - int (bb['y1'])))
-            for x1 in x1s:
-                for y1 in y1s:
-                    #print ('x0: {}, y0: {}'.format (center[0], center[1]))
-                    #print ('x1: {}, y1: {}'.format (x1, y1))
-                    x2, y2 = obtain_rotated_pos (x1, y1, center[0], center[1], dtheta)
-                    x_cand.append (int (x2[0]))
-                    y_cand.append (int (y2[0]))
-                    
-            bb_mod['x1'] = min (x_cand)
-            bb_mod['y1'] = min (y_cand)
-            bb_mod['x2'] = max (x_cand)
-            bb_mod['y2'] = max (y_cand)
-            
-            print ("bb_mod", bb_mod, (int (bb_mod['x2'])  - int (bb_mod['x1'])) * (int (bb_mod['y2'])  - int (bb_mod['y1'])))
-        print ("modified img path: ", img_path_mod)
         bb_xml.save_geometrical_modification (target_dir_path, 'dtheta_{}_'.format (dtheta))
-            
-
-    exit ()
-
 
 
 def offset (target_dir_path, img_path, xml_path):
