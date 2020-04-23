@@ -217,27 +217,37 @@ def rotate_img (target_dir_path, img_path, xml_path):
         bb_xml.save_geometrical_modification (target_dir_path, 'dtheta_{}_'.format (dtheta))
 
 
-def offset (target_dir_path, img_path, xml_path):
+def offset_img (target_dir_path, img_path, xml_path):
     img = cv2.imread (img_path)
     img_w, img_h, _ = img.shape
-    bb_xml = BboxesInXML (xml_path)
 
-    dx_list = aug_conf.offset_dx
-    dy_list = aug_conf.offset_dy
+    center = (int (0.5 * img_w), int (0.5 * img_h))
     
-    for dx in dx_list:
-        for dy in dy_list:
-            for bb_mod, bb in zip (bb_xml.bboxes_mod, bb_xml.bboxes):
-                if bb['x1'] + dx < 0:         break
-                if bb['x2'] + dx > bb_xml.w:  break
-                if bb['y1'] + dy < 0:         break
-                if bb['y2'] + dy > bb_xml.h:  break
-                bb_mod['x1'] = bb['x1'] + dx
-                bb_mod['x2'] = bb['x2'] + dx
-                bb_mod['y1'] = bb['y1'] + dy
-                bb_mod['y2'] = bb['y2'] + dy
-            bb_xml.w_mod = bb_xml.w - dx
-            bb_xml.h_mod = bb_xml.h - dy
+    for dx in aug_conf.offset_dx:
+        for dy in aug_conf.offset_dy:
+            #scale = (img_h + img_w * np.sin (np.radians (abs (dtheta)))) / img_h
+            trans = np.array ([[1, 0, dx], [0, 1, dy]], dtype = np.float32)
+            
+            print (trans)
+            
+            img_mod = cv2.warpAffine(img, trans, (img_w, img_h))
+            img_path_mod = obtain_mod_path (target_dir_path, 'dx_{}_dy_{}_'.format (dx, dy), img_path)
+            #print ("transformation:    ", trans)
+            #print ("img size modified: ", img_mod.shape[1], img_mod.shape[0])
+            cv2.imwrite (img_path_mod, img_mod)
+            img_test     = img
+            img_mod_test = img_mod
+            ### xmlの編集
+            bb_xml = BboxesInXML (xml_path)    
+            for bb, bb_mod in zip (bb_xml.bboxes, bb_xml.bboxes_mod):
+                bb_mod['x1'] = int (bb['x1']) + dx
+                bb_mod['y1'] = int (bb['y1']) + dy
+                bb_mod['x2'] = int (bb['x2']) + dx
+                bb_mod['y2'] = int (bb['y2']) + dy
+
+            bb_xml.save_geometrical_modification (target_dir_path, 'dx_{}_dy_{}_'.format (dx, dy))
+    
+
     
 
 
@@ -331,9 +341,11 @@ if __name__ == '__main__':
     
         ### 乱数でaugmentationの数を選ぶようにする
 
+        ###  オフセットする  (±10, 20, 40)
+        offset_img (aug_img_path, resized_img_path, resized_xml_path)
+
         ###  角度を変える (±5°)
         rotate_img (aug_img_path, resized_img_path, resized_xml_path)
-
 
         ###  彩度を変える
         modify_colour_tone (aug_img_path, resized_img_path, resized_xml_path)
@@ -344,7 +356,7 @@ if __name__ == '__main__':
         ###  ノイズを加える
         add_gaussian_noize (aug_img_path, resized_img_path, resized_xml_path)
         
-        ###  オフセットする  (±10, 20, 40)
+        ###  シャープネス
 
         ### ぼかす
 
