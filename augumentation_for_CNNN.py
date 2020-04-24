@@ -151,23 +151,7 @@ def modify_contrast (target_dir_path, img_path, xml_path):
             cv2.imwrite (img_path_mod, img_mod)            
             shutil.copy (xml_path, xml_path_mod)
 
-def obtain_rotation_ndarray (theta):
-    theta = np.radians (theta)
-    return np.array ([[np.cos (theta), -1.0 * np.sin (theta)], \
-        [np.sin (theta), np.cos (theta)]])
 
-def obtain_rotated_pos (x1, y1, x0, y0, theta):
-    r1 = np.array ([float (x1), float (y1)]).reshape ((2, 1))
-    r0 = np.array ([float (x0), float (y0)]).reshape ((2, 1))
-    #print ("r0 = \n  {}\n\n r1 = \n  {}".format (r0, r1))
-    #print ("r1 - r0", r1 - r0)
-    
-    A  = obtain_rotation_ndarray (theta)
-    #print (A)
-    r2 = np.dot (A, r1 - r0) + r0
-    #print (np.dot (A, r1 - r0))
-    #print ("rotation from {} to {} by {}deg".format (r1, r2, theta))
-    return r2
 
 def rotate_img (target_dir_path, img_path, xml_path):
     img = cv2.imread (img_path)
