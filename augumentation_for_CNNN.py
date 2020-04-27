@@ -151,6 +151,29 @@ def modify_contrast (target_dir_path, img_path, xml_path):
             cv2.imwrite (img_path_mod, img_mod)            
             shutil.copy (xml_path, xml_path_mod)
 
+def sharpen_img (target_dir_path, img_path, xml_path):
+    img = cv2.imread (img_path)
+
+    for A in aug_conf.A_sharpness:
+        ker = np.array (A, dtype=np.float32)
+        img_mod = cv2.filter2D (img, -1, ker)
+        img_path_mod = os.path.join (target_dir_path, 'A_sharp_{}_'.format (A[1][1]) + os.path.basename (img_path))
+        xml_path_mod = os.path.join (target_dir_path, 'A_sharp_{}_'.format (A[1][1]) + os.path.basename (xml_path))
+        cv2.imwrite (img_path_mod, img_mod)            
+        shutil.copy (xml_path, xml_path_mod)
+    exit ()
+
+def add_blur (target_dir_path, img_path, xml_path):
+    img = cv2.imread (img_path)
+    img_w, img_h, _ = img.shape
+
+    for k_blur in aug_conf.k_blur:
+        img_mod = cv2.blur (img, ksize = (k_blur, k_blur))
+        img_path_mod = os.path.join (target_dir_path, 'k_blur_{}_'.format (k_blur) + os.path.basename (img_path))
+        xml_path_mod = os.path.join (target_dir_path, 'k_blur_{}_'.format (k_blur) + os.path.basename (xml_path))
+        cv2.imwrite (img_path_mod, img_mod)            
+        shutil.copy (xml_path, xml_path_mod)
+    
 
 
 def rotate_img (target_dir_path, img_path, xml_path):
@@ -199,6 +222,7 @@ def rotate_img (target_dir_path, img_path, xml_path):
             bb_mod['y2'] = np.max (np.mean ([r3_mod[0][1], r4_mod[0][1]]),  0)
 
         bb_xml.save_geometrical_modification (target_dir_path, 'dtheta_{}_'.format (dtheta))
+
 
 
 def offset_img (target_dir_path, img_path, xml_path):
@@ -324,6 +348,11 @@ if __name__ == '__main__':
         shutil.copy (resized_xml_path, aug_img_path)
     
         ### 乱数でaugmentationの数を選ぶようにする
+        ###  シャープネス
+        sharpen_img (aug_img_path, resized_img_path, resized_xml_path)
+    
+        ### ぼかす
+        add_blur (aug_img_path, resized_img_path, resized_xml_path)        
 
         ###  オフセットする  (±10, 20, 40)
         offset_img (aug_img_path, resized_img_path, resized_xml_path)
@@ -340,9 +369,7 @@ if __name__ == '__main__':
         ###  ノイズを加える
         add_gaussian_noize (aug_img_path, resized_img_path, resized_xml_path)
         
-        ###  シャープネス
-
-        ### ぼかす
+        
 
 
         
