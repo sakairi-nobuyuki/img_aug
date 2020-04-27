@@ -332,6 +332,7 @@ if __name__ == '__main__':
     '''
     データがデカかったら縮小して、適当にargumentationする。
     各関数は[{img_path: 'img_path', xml_path: 'xml_path'}, ...]を返し、関数内でimg_pathに画像を保存して、xmlも編集する。
+    画像の返還はランダムっぽくやる。
     '''
     ### オリジナルの学習ファイルを読み込む
     #img_path_list = obtain_imgs_path_list ()
@@ -341,6 +342,8 @@ if __name__ == '__main__':
     aug_img_path = './annotation/aug'
     if os.path.exists (aug_img_path) == False:  os.makedirs (aug_img_path)
 
+    
+
     for img_path, xml_path in zip (img_path_list, xml_path_list):
         ### サイズがデカかったら小さくする。
         resized_img_path, resized_xml_path = rezise_img_and_xml ('./annotation/resize', img_path, xml_path)
@@ -348,6 +351,13 @@ if __name__ == '__main__':
         shutil.copy (resized_xml_path, aug_img_path)
     
         ### 乱数でaugmentationの数を選ぶようにする
+        ###  何個の変換を施すか選ぶ  ###
+
+        ### どの画像変換をやるか選ぶ ###
+
+        ### それぞれの変換のパラメータの乱数リストを作る ###
+        
+
         ###  シャープネス
         sharpen_img (aug_img_path, resized_img_path, resized_xml_path)
     
