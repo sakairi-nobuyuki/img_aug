@@ -151,7 +151,16 @@ def modify_contrast (target_dir_path, img_path, xml_path):
             cv2.imwrite (img_path_mod, img_mod)            
             shutil.copy (xml_path, xml_path_mod)
 
-def sharpen_img (target_dir_path, img_path, xml_path):
+def sharpen_img (aug_obj, trans_flag):
+#def sharpen_img (target_dir_path, img_path, xml_path, trans_flag):
+    print ("trans_flag", trans_flag)
+    if trans_flag == 0:
+        return aug_obj
+    else:
+        A = aug_conf.A_sharpness[trans_flag % 2]
+    print (A)
+    exit ()
+
     img = cv2.imread (img_path)
 
     for A in aug_conf.A_sharpness:
@@ -264,7 +273,16 @@ def save_mod_img_and_xml (img_mod_list, img_path_mod_list, img_path_list, xml_pa
     for img_mod, img_path_mod in zip (img_mod_list, img_path_mod_list):
         cv2.imwrite (img_path_mod, img_mod)
 
+def init_aug_obj (img_path, xml_path):
+    aug_obj = {}
+    aug_obj['img'] = cv2.imread (img_path)
+    aug_obj['xml'] = BboxesInXML (xml_path)
+    aug_obj['img_path'] = img_path
+    aug_obj['xml_path'] = xml_path
+    return aug_obj
 
+def get_trans_flag ():
+    return np.random.randint (0, 5)
 
 class BboxesInXML:
     def __init__(self, xml_path):
@@ -333,6 +351,19 @@ if __name__ == '__main__':
     データがデカかったら縮小して、適当にargumentationする。
     各関数は[{img_path: 'img_path', xml_path: 'xml_path'}, ...]を返し、関数内でimg_pathに画像を保存して、xmlも編集する。
     画像の返還はランダムっぽくやる。
+
+    色々な変換に乱数trans_flagを渡す。
+    transformation (aug_img_path, img_path, xml_path, trans_flag)
+
+    変換の中で、本当に変換するしない、するならそのときのパラメータを決める。
+    def transformation (aug_img_path, img_path, xml_path, trans_flag):
+        if trans_flag == 0:
+            return img, xml, img_path, xml_path
+        else:
+            trans_parameter = function_to_make_parameter (trans_flag)
+        img processing and xml processing...
+
+        return img, xml, img_path_to_save, xml_path_to_save
     '''
     ### オリジナルの学習ファイルを読み込む
     #img_path_list = obtain_imgs_path_list ()
@@ -351,16 +382,14 @@ if __name__ == '__main__':
         shutil.copy (resized_xml_path, aug_img_path)
     
         ### 乱数でaugmentationの数を選ぶようにする
-        ###  何個の変換を施すか選ぶ  ###
-
-        ### どの画像変換をやるか選ぶ ###
-
-        ### それぞれの変換のパラメータの乱数リストを作る ###
-        
+        aug_obj = init_aug_obj
 
         ###  シャープネス
-        sharpen_img (aug_img_path, resized_img_path, resized_xml_path)
-    
+        aug_obj = sharpen_img (aug_obj, get_trans_flag ())
+        #sharpen_img (aug_img_path, resized_img_path, resized_xml_path)
+
+        exit ()
+
         ### ぼかす
         add_blur (aug_img_path, resized_img_path, resized_xml_path)        
 
