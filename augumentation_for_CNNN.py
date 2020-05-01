@@ -158,7 +158,14 @@ def sharpen_img (aug_obj, trans_flag):
         return aug_obj
     else:
         A = aug_conf.A_sharpness[trans_flag % 2]
-    print (A)
+
+    ker = np.array (A, dtype=np.float32)
+    aug_obj['img'] = cv2.filter2D (aug_obj['img'], -1, ker)
+    img_path_mod = os.path.join (target_dir_path, 'A_sharp_{}_'.format (A[1][1]) + os.path.basename (img_path))
+    xml_path_mod = os.path.join (target_dir_path, 'A_sharp_{}_'.format (A[1][1]) + os.path.basename (xml_path))
+    cv2.imwrite (img_path_mod, img_mod)            
+    shutil.copy (xml_path, xml_path_mod)        
+
     exit ()
 
     img = cv2.imread (img_path)
@@ -284,6 +291,73 @@ def init_aug_obj (img_path, xml_path):
 def get_trans_flag ():
     return np.random.randint (0, 5)
 
+class AugumentationObjects:
+    def __init__(self, target_dir_path, img_path, xml_path):
+        self.img = cv2.imread (img_path)
+        self.img_path = img_path
+
+        self.xml_obj  = BboxesInXML (xml_path)
+        self.xml_path = xml_path
+
+        self.target_dir_path = target_dir_path
+
+    def modify_img_path (self, attr):
+        self.img_path = os.path.join (self.target_dir_path, '{}_'.format (attr) + os.path.basename (self.img_path))
+    
+    def modify_xml_path (self, attr):
+        self.xml_path = os.path.join (self.target_dir_path, '{}_'.format (attr) + os.path.basename (self.xml_path))
+
+    def sharpen_img (self, trans_flag):
+        print ("in sharpening img, trans_flag", trans_flag)
+        if trans_flag == 0:
+            print ("  flag is 0, and nothing to do.")
+            return 0
+        else:
+            A = aug_conf.A_sharpness[trans_flag % 2]
+            print ("  flag is {}. A = {}.".format (trans_flag, A))
+
+        ker = np.array (A, dtype=np.float32)
+        self.img = cv2.filter2D (self.img, -1, ker)
+        self.modify_img_path ('A_sharp_{}_'.format (A[1][1]))
+        self.modify_xml_path ('A_sharp_{}_'.format (A[1][1]))
+
+        return 1
+        
+    def add_blur (self, trans_flag):
+        print ("in img blur, trans_flag", trans_flag)
+        if 'sharp' in self.img_path:
+            print ('  sharpness already done. nothing can be done with img blur. going to abort the process.')
+            return 0
+        if trans_flag == 0:
+            print ("  flag is 0, and nothing to do.")
+            return 0
+        else:
+            k_blur = aug_conf.k_blur[trans_flag % len (aug_conf.k_blur)]
+            print ("  flag is {}. k_blur = {}.".format (trans_flag, k_blur))
+
+        self.img = cv2.blur (self.img, ksize = (k_blur, k_blur))
+        self.modify_img_path ('k_blur_{}_'.format (k_blur))
+        self.modify_xml_path ('k_blur_{}_'.format (k_blur))
+
+
+    def modify_colour_tone (self, trans_flag_s_mag, trans_flag_v_mag):
+        print ("in modifying color tone")
+        s_mag = aug_conf.s_mag_list[trans_flag_s_mag]
+        v_mag = aug_conf.v_mag_list[trans_flag_v_mag]
+
+        img = self.img
+        img_hsv = cv2.cvtColor (img, cv2.COLOR_BGR2HSV)
+        img_hsv_mod = img_hsv
+        img_hsv_mod[:, :, (1)] = img_hsv[:, :, (1)] * s_mag
+            
+        img_hsv_mod[:, :, (2)] = img_hsv[:, :, (2)] * v_mag
+        
+        self.img = cv2.cvtColor (img_hsv_mod, cv2.COLOR_HSV2BGR)
+
+        self.modify_img_path ('s_mag_{}_v_mag_{}_'.format (s_mag, v_mag))
+        self.modify_xml_path ('s_mag_{}_v_mag_{}_'.format (s_mag, v_mag))
+
+
 class BboxesInXML:
     def __init__(self, xml_path):
         tree = ET.parse (xml_path)
@@ -380,18 +454,24 @@ if __name__ == '__main__':
         resized_img_path, resized_xml_path = rezise_img_and_xml ('./annotation/resize', img_path, xml_path)
         shutil.copy (resized_img_path, aug_img_path)
         shutil.copy (resized_xml_path, aug_img_path)
-    
+
+        ### augumentation用のオブジェクトを定義する
+        aug_obj = AugumentationObjects (aug_img_path, resized_img_path, resized_xml_path)
+
         ### 乱数でaugmentationの数を選ぶようにする
-        aug_obj = init_aug_obj
 
+        
         ###  シャープネス
-        aug_obj = sharpen_img (aug_obj, get_trans_flag ())
-        #sharpen_img (aug_img_path, resized_img_path, resized_xml_path)
-
+        aug_obj.sharpen_img (0)
+        
+        ###  ボケ        
+        aug_obj.add_blur (2)
+        ###  彩度を変える
+        aug_obj.modify_colour_tone (1, 2)
+        cv2.imwrite (aug_obj.img_path, aug_obj.img)
         exit ()
 
-        ### ぼかす
-        add_blur (aug_img_path, resized_img_path, resized_xml_path)        
+        
 
         ###  オフセットする  (±10, 20, 40)
         offset_img (aug_img_path, resized_img_path, resized_xml_path)
@@ -399,9 +479,6 @@ if __name__ == '__main__':
         ###  角度を変える (±5°)
         rotate_img (aug_img_path, resized_img_path, resized_xml_path)
 
-        ###  彩度を変える
-        modify_colour_tone (aug_img_path, resized_img_path, resized_xml_path)
-                
         ###  コントラストを変える
         modify_contrast (aug_img_path, resized_img_path, resized_xml_path)
         
