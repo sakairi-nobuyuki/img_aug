@@ -33,43 +33,7 @@ def obtain_imgs_and_xml_path_list (img_dir_path = None):
     #print ("open: ", img_path_list[0], os.path.exists (img_path_list[0]))
     return img_path_list, xml_path_list
 
-
-def modify_colour_tone (target_dir_path, img_path, xml_path):
-    img = cv2.imread (img_path)
-    #img_hsv = cv2.cvtColor (img, cv2.COLOR_BGR2HSV)
-    print ("modifying color tone of {}".format (img_path))
-    s_mag_list = [1.0, 0.7]   ## magnitude of saturation
-    v_mag_list = [1.0, 0.7]   ## magnitude of value
-    #v_mag_list = [1.0]   ## magnitude of value
-    #print ("{} of which shape {} shall be modified".format (img_path, img_hsv.shape))
-
-    img_mod_list = []
-    img_path_mod_list = []
-    xml_path_mod_list = []
-    for s_mag in s_mag_list:
-        for v_mag in v_mag_list:
-            img_hsv = cv2.cvtColor (img, cv2.COLOR_BGR2HSV)
-            if float (s_mag) == 1.0 and  float (v_mag) == 1.0:  continue
-            img_hsv_mod = img_hsv
-            img_hsv_mod[:, :, (1)] = img_hsv[:, :, (1)] * s_mag
-            
-            img_hsv_mod[:, :, (2)] = img_hsv[:, :, (2)] * v_mag
-            print ("s_mag: {}, v_mag: {}, s: {}, v: {}".format (s_mag, v_mag, img_hsv_mod[:, :, (1)].mean, img_hsv_mod[:, :, (2)].mean))
-            img_mod = cv2.cvtColor (img_hsv_mod, cv2.COLOR_HSV2BGR)
-            img_path_mod = os.path.join (target_dir_path, 's_mag_{}_v_mag_{}_'.format (s_mag, v_mag) + os.path.basename (img_path))
-            xml_path_mod = os.path.join (target_dir_path, 's_mag_{}_v_mag_{}_'.format (s_mag, v_mag) + os.path.basename (xml_path))
-            #img_path_mod = os.path.join (os.path.dirname (img_path).replace ('test', 'aug'), 's_mag_{}_v_mag_{}_'.format (s_mag, v_mag) + os.path.basename (img_path))
-            #xml_path_mod = os.path.join (os.path.dirname (img_path).replace ('test', 'aug'), 's_mag_{}_v_mag_{}_'.format (s_mag, v_mag) + os.path.basename (img_path).replace ('jpg', 'xml'))
-            img_mod_list.append (img_mod)
-            #cv2.imshow ("test", img_mod)
-            #cv2.waitKey (0)
-            #cv2.destroyAllWindows ()
-            #img_path_mod_list.append (img_path_mod)
-            #xml_path_mod_list.append (xml_path_mod)
-            cv2.imwrite (img_path_mod, img_mod)
-            shutil.copy (xml_path, xml_path_mod)
-    
-    
+   
 
 def rezise_img_and_xml (target_dir_path, img_path, xml_path):
     if os.path.exists (target_dir_path) == False:
@@ -114,166 +78,8 @@ def rezise_img_and_xml (target_dir_path, img_path, xml_path):
 
     return img_path_mod, xml_path_mod
 
-def add_gaussian_noize (target_dir_path, img_path, xml_path):
-    img = cv2.imread (img_path)
-    row,col,ch= img.shape
-    mean = 0
-
-    sigma_list = [1, 2, 5, 10]
-    
-    for sigma in sigma_list:
-        gauss = np.random.normal (mean, sigma, (row,col,ch))
-        gauss = gauss.reshape (row, col, ch)
-        img_mod = img + gauss
-        img_path_mod = obtain_mod_path (target_dir_path, 'sigma_{}'.format (sigma), img_path)
-        xml_path_mod = obtain_mod_path (target_dir_path, 'sigma_{}'.format (sigma), xml_path)
-
-        cv2.imwrite (img_path_mod, img_mod)
-        shutil.copy (xml_path, xml_path_mod)
-
 def obtain_mod_path (target_dir_path, decoration, original_path):
     return os.path.join (target_dir_path, decoration + os.path.basename (original_path))
-
-def modify_contrast (target_dir_path, img_path, xml_path):
-    img = cv2.imread (img_path)
-
-    alpha_list = [0.6, 1.0, 1.2, 1.4]
-    gamma_list = [-20, 0, 20, 50]
-
-    img_mod_list = []
-    img_path_mod_list = []
-    for alpha in alpha_list:
-        for gamma in gamma_list:
-            img_mod = img * alpha + gamma
-            #img_path_mod = os.path.join (os.path.dirname (img_path).replace ('test', 'aug'), 'alpha_{}_gamma_{}_'.format (alpha, gamma) + os.path.basename (img_path))
-            img_path_mod = os.path.join (target_dir_path, 'alpha_{}_gamma_{}_'.format (alpha, gamma) + os.path.basename (img_path))
-            xml_path_mod = os.path.join (target_dir_path, 'alpha_{}_gamma_{}_'.format (alpha, gamma) + os.path.basename (xml_path))
-            cv2.imwrite (img_path_mod, img_mod)            
-            shutil.copy (xml_path, xml_path_mod)
-
-def sharpen_img (aug_obj, trans_flag):
-#def sharpen_img (target_dir_path, img_path, xml_path, trans_flag):
-    print ("trans_flag", trans_flag)
-    if trans_flag == 0:
-        return aug_obj
-    else:
-        A = aug_conf.A_sharpness[trans_flag % 2]
-
-    ker = np.array (A, dtype=np.float32)
-    aug_obj['img'] = cv2.filter2D (aug_obj['img'], -1, ker)
-    img_path_mod = os.path.join (target_dir_path, 'A_sharp_{}_'.format (A[1][1]) + os.path.basename (img_path))
-    xml_path_mod = os.path.join (target_dir_path, 'A_sharp_{}_'.format (A[1][1]) + os.path.basename (xml_path))
-    cv2.imwrite (img_path_mod, img_mod)            
-    shutil.copy (xml_path, xml_path_mod)        
-
-    exit ()
-
-    img = cv2.imread (img_path)
-
-    for A in aug_conf.A_sharpness:
-        ker = np.array (A, dtype=np.float32)
-        img_mod = cv2.filter2D (img, -1, ker)
-        img_path_mod = os.path.join (target_dir_path, 'A_sharp_{}_'.format (A[1][1]) + os.path.basename (img_path))
-        xml_path_mod = os.path.join (target_dir_path, 'A_sharp_{}_'.format (A[1][1]) + os.path.basename (xml_path))
-        cv2.imwrite (img_path_mod, img_mod)            
-        shutil.copy (xml_path, xml_path_mod)
-    exit ()
-
-def add_blur (target_dir_path, img_path, xml_path):
-    img = cv2.imread (img_path)
-    img_w, img_h, _ = img.shape
-
-    for k_blur in aug_conf.k_blur:
-        img_mod = cv2.blur (img, ksize = (k_blur, k_blur))
-        img_path_mod = os.path.join (target_dir_path, 'k_blur_{}_'.format (k_blur) + os.path.basename (img_path))
-        xml_path_mod = os.path.join (target_dir_path, 'k_blur_{}_'.format (k_blur) + os.path.basename (xml_path))
-        cv2.imwrite (img_path_mod, img_mod)            
-        shutil.copy (xml_path, xml_path_mod)
-    
-
-
-def rotate_img (target_dir_path, img_path, xml_path):
-    img = cv2.imread (img_path)
-    img_w, img_h, _ = img.shape
-    
-
-    center = (int (0.5 * img_w), int (0.5 * img_h))
-
-    dtheta_list = aug_conf.rotation_deg
-
-    print (dtheta_list)
-    
-    for dtheta in dtheta_list:
-        scale = (img_h + img_w * np.sin (np.radians (abs (dtheta)))) / img_h
-        trans = cv2.getRotationMatrix2D(center, dtheta , scale)
-        img_mod = cv2.warpAffine(img, trans, (img_w, img_h))
-        img_path_mod = obtain_mod_path (target_dir_path, 'dtheta_{}_'.format (dtheta), img_path)
-        #print ("img size original: ", img_w, img_h)
-        #print ("transformation:    ", trans)
-        #print ("img size modified: ", img_mod.shape[1], img_mod.shape[0])
-        cv2.imwrite (img_path_mod, img_mod)
-        img_test     = img
-        img_mod_test = img_mod
-        ### xmlの編集
-        bb_xml = BboxesInXML (xml_path)    
-        for bb, bb_mod in zip (bb_xml.bboxes, bb_xml.bboxes_mod):
-            #### r1, r2, r3, r4は左上から時計回りに長方形の頂点座標を示す。
-            r1 = np.array ([bb['x1'], bb['y1']], dtype=float)
-            r2 = np.array ([bb['x2'], bb['y1']], dtype=float)
-            r3 = np.array ([bb['x2'], bb['y2']], dtype=float)
-            r4 = np.array ([bb['x1'], bb['y2']], dtype=float)
-
-            ### 回転返還の行列はopenCVでゲットしたやつを流用する。面倒なので。
-            trans_A_minor = trans[0:2, 0:2]
-            trans_A_add   = trans[0:2, 2:3]
-                        
-            r1_mod = np.dot (trans_A_minor, r1.T) + trans_A_add.T * scale
-            r2_mod = np.dot (trans_A_minor, r2.T) + trans_A_add.T * scale
-            r3_mod = np.dot (trans_A_minor, r3.T) + trans_A_add.T * scale
-            r4_mod = np.dot (trans_A_minor, r4.T) + trans_A_add.T * scale
-                        
-            bb_mod['x1'] = np.max (np.mean ([r1_mod[0][0], r4_mod[0][0]]), 0)
-            bb_mod['y1'] = np.max (np.mean ([r1_mod[0][1], r2_mod[0][1]]), 0)
-            bb_mod['x2'] = np.max (np.mean ([r2_mod[0][0], r3_mod[0][0]]), 0)
-            bb_mod['y2'] = np.max (np.mean ([r3_mod[0][1], r4_mod[0][1]]),  0)
-
-        bb_xml.save_geometrical_modification (target_dir_path, 'dtheta_{}_'.format (dtheta))
-
-
-
-def offset_img (target_dir_path, img_path, xml_path):
-    img = cv2.imread (img_path)
-    img_w, img_h, _ = img.shape
-
-    center = (int (0.5 * img_w), int (0.5 * img_h))
-    
-    for dx in aug_conf.offset_dx:
-        for dy in aug_conf.offset_dy:
-            #scale = (img_h + img_w * np.sin (np.radians (abs (dtheta)))) / img_h
-            trans = np.array ([[1, 0, dx], [0, 1, dy]], dtype = np.float32)
-            
-            print (trans)
-            
-            img_mod = cv2.warpAffine(img, trans, (img_w, img_h))
-            img_path_mod = obtain_mod_path (target_dir_path, 'dx_{}_dy_{}_'.format (dx, dy), img_path)
-            #print ("transformation:    ", trans)
-            #print ("img size modified: ", img_mod.shape[1], img_mod.shape[0])
-            cv2.imwrite (img_path_mod, img_mod)
-            img_test     = img
-            img_mod_test = img_mod
-            ### xmlの編集
-            bb_xml = BboxesInXML (xml_path)    
-            for bb, bb_mod in zip (bb_xml.bboxes, bb_xml.bboxes_mod):
-                bb_mod['x1'] = int (bb['x1']) + dx
-                bb_mod['y1'] = int (bb['y1']) + dy
-                bb_mod['x2'] = int (bb['x2']) + dx
-                bb_mod['y2'] = int (bb['y2']) + dy
-
-            bb_xml.save_geometrical_modification (target_dir_path, 'dx_{}_dy_{}_'.format (dx, dy))
-    
-
-    
-
 
 
 def save_mod_img_and_xml (img_mod_list, img_path_mod_list, img_path_list, xml_path_mod_list):
@@ -589,7 +395,9 @@ if __name__ == '__main__':
         aug_obj.rotate_img (1)
 
         ### 画像とxmlを保存する
+        ### xmlは、xmlのデータがaffine transformで変わるのと、その保存は別にやらないといけない。！！！！
         cv2.imwrite (aug_obj.img_path, aug_obj.img)
+        exit ()
         
 
         
