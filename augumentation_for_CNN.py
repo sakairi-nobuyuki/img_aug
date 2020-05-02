@@ -328,12 +328,11 @@ class AugumentationObjects:
         if 'sharp' in self.img_path:
             print ('  sharpness already done. nothing can be done with img blur. going to abort the process.')
             return 0
-        if trans_flag == 0:
-            print ("  flag is 0, and nothing to do.")
+        k_blur = aug_conf.k_blur[trans_flag % len (aug_conf.k_blur)]
+        if k_blur == 0:
+            print ("  k_blur is 0, and nothing to do.")
             return 0
-        else:
-            k_blur = aug_conf.k_blur[trans_flag % len (aug_conf.k_blur)]
-            print ("  flag is {}. k_blur = {}.".format (trans_flag, k_blur))
+        print ("  flag is {}. k_blur = {}.".format (trans_flag, k_blur))
 
         self.img = cv2.blur (self.img, ksize = (k_blur, k_blur))
         self.modify_img_path ('k_blur_{}_'.format (k_blur))
@@ -344,6 +343,9 @@ class AugumentationObjects:
         print ("in modifying color tone")
         s_mag = aug_conf.s_mag_list[trans_flag_s_mag]
         v_mag = aug_conf.v_mag_list[trans_flag_v_mag]
+        if s_mag == 0 and v_mag == 0:
+            print ("  s magnitude = {}, v magnitude = {}. nothing can be done".format (s_mag, v_mag))
+            return 0
         print ("  s magnitude = {}, v magnitude = {}".format (s_mag, v_mag))
 
         img = self.img
@@ -360,13 +362,13 @@ class AugumentationObjects:
 
     def modify_contrast (self, trans_flag_alpha, trans_flag_gamma):
         print ("in modifying contrast")
-        if trans_flag_alpha == 0 or trans_flag_gamma == 0:
+        alpha = aug_conf.alpha_list[trans_flag_alpha]
+        gamma = aug_conf.gamma_list[trans_flag_gamma]
+
+        if alpha == 0 and gamma == 0:
             print ("  trans flag == 0, nothing to do")
             return 0
-        else:
-            alpha = aug_conf.alpha_list[trans_flag_alpha]
-            gamma = aug_conf.gamma_list[trans_flag_gamma]
-            print ("  alpha = {}, gamma = {}".format (alpha, gamma))
+        print ("  alpha = {}, gamma = {}".format (alpha, gamma))
 
         self.img = self.img * alpha + gamma
 
@@ -375,12 +377,10 @@ class AugumentationObjects:
 
     def add_gaussian_noize (self, trans_flag_sigma):
         print ("in adding Gaussian noize")    
-        if trans_flag_sigma == 0:
+        sigma = aug_conf.sigma_list[trans_flag_sigma]
+        if sigma == 0:
             print ("  Gaussian sigma == 0, nothing can be done")
-            return 0
-        else:
-            sigma = aug_conf.sigma_list[trans_flag_sigma]
-            print ("  sigma = {}".format (sigma))
+        print ("  sigma = {}".format (sigma))
         row,col,ch= self.img.shape
         mean = 0
         gauss = np.random.normal (mean, sigma, (row,col,ch))
@@ -390,6 +390,78 @@ class AugumentationObjects:
         self.modify_img_path ('gaussian_sigma_{}_'.format (sigma))
         self.modify_xml_path ('gaussian_sigma_{}_'.format (sigma))  
 
+    def offset_img (self, trans_flag_dx, trans_flag_dy):
+        print ("in offsetting image")
+        dx = trans_flag_dx
+        dy = trans_flag_dy
+        if dx == 0 and dy == 0:
+            print ("  dx = {}, dy = {}. nothing to do".format (dx, dy))
+            return 0
+        print ("  dx = {}, dy = {}.".format (dx, dy))
+        
+        img_w, img_h, _ = self.img.shape
+
+        center = (int (0.5 * img_w), int (0.5 * img_h))
+        trans = np.array ([[1, 0, dx], [0, 1, dy]], dtype = np.float32)
+        print ("  transform matrix:")
+        pprint.pprint (trans, indent = 2)
+
+        self.img = cv2.warpAffine(self.img, trans, (img_w, img_h))
+
+        self.modify_img_path ('dx_{}_dy_{}_'.format (dx, dy))
+        self.modify_xml_path ('dx_{}_dy_{}_'.format (dx, dy))
+
+        for bb, bb_mod in zip (self.xml_obj.bboxes, self.xml_obj.bboxes_mod):
+            bb_mod['x1'] = int (bb['x1']) + dx
+            bb_mod['y1'] = int (bb['y1']) + dy
+            bb_mod['x2'] = int (bb['x2']) + dx
+            bb_mod['y2'] = int (bb['y2']) + dy
+        self.xml_obj.save_geometrical_modification ('', '', self.xml_path)
+
+    def rotate_img (self, target_flag_dtheta):
+        print ("in rotating image")
+        dtheta = aug_conf.rotation_deg[target_flag_dtheta]
+        if 'dx' in self.img_path or 'dy' in self.img_path:
+            print ("  offset already done. rotation cannot be carried out.")
+        if dtheta == 0:
+            print ("  dtheta == 0. nothing can be done")
+            return 0
+        else:   
+            print ("  dheta = {}".format (dtheta))
+        img_w, img_h, _ = self.img.shape
+
+        center = (int (0.5 * img_w), int (0.5 * img_h))
+
+        scale = (img_h + img_w * np.sin (np.radians (abs (dtheta)))) / img_h
+        trans = cv2.getRotationMatrix2D(center, dtheta , scale)
+        self.img = cv2.warpAffine(self.img, trans, (img_w, img_h))
+
+        self.modify_img_path ('dtheta_{}_'.format (dtheta))
+        self.modify_xml_path ('dtheta_{}_'.format (dtheta))
+
+        bb_xml = BboxesInXML (xml_path)    
+        for bb, bb_mod in zip (self.xml_obj.bboxes, self.xml_obj.bboxes_mod):
+        #for bb, bb_mod in zip (bb_xml.bboxes, bb_xml.bboxes_mod):
+            #### r1, r2, r3, r4は左上から時計回りに長方形の頂点座標を示す。
+            r1 = np.array ([bb['x1'], bb['y1']], dtype=float)
+            r2 = np.array ([bb['x2'], bb['y1']], dtype=float)
+            r3 = np.array ([bb['x2'], bb['y2']], dtype=float)
+            r4 = np.array ([bb['x1'], bb['y2']], dtype=float)
+
+            ### 回転返還の行列はopenCVでゲットしたやつを流用する。面倒なので。
+            trans_A_minor = trans[0:2, 0:2]
+            trans_A_add   = trans[0:2, 2:3]
+
+            r1_mod = np.dot (trans_A_minor, r1.T) + trans_A_add.T * scale
+            r2_mod = np.dot (trans_A_minor, r2.T) + trans_A_add.T * scale
+            r3_mod = np.dot (trans_A_minor, r3.T) + trans_A_add.T * scale
+            r4_mod = np.dot (trans_A_minor, r4.T) + trans_A_add.T * scale
+
+            bb_mod['x1'] = np.max (np.mean ([r1_mod[0][0], r4_mod[0][0]]), 0)
+            bb_mod['y1'] = np.max (np.mean ([r1_mod[0][1], r2_mod[0][1]]), 0)
+            bb_mod['x2'] = np.max (np.mean ([r2_mod[0][0], r3_mod[0][0]]), 0)
+            bb_mod['y2'] = np.max (np.mean ([r3_mod[0][1], r4_mod[0][1]]),  0)
+        self.xml_obj.save_geometrical_modification ("", "", self.xml_path)
 
 
 class BboxesInXML:
@@ -436,9 +508,10 @@ class BboxesInXML:
             bbox_dict['y2'] = bbox['y2'] * rate
         self.bboxes_mod.append (bbox_dict)
 
-    def save_geometrical_modification (self, target_dir_path, decorator):
+    def save_geometrical_modification (self, target_dir_path, decorator, new_path = None):
         #new_path = os.path.join (target_dir_path, self.original_dir, decorator + self.original_name)
-        new_path = os.path.join (target_dir_path, decorator + self.original_name)
+        if new_path == None:
+            new_path = os.path.join (target_dir_path, decorator + self.original_name)
         print ("oririnal path:            ", self.original_path)
         print ("new path to save changes: ", new_path)
         tree = ET.parse (self.original_path)
@@ -509,18 +582,14 @@ if __name__ == '__main__':
         ###  ノイズを加える
         aug_obj.add_gaussian_noize (2)
 
-        cv2.imwrite (aug_obj.img_path, aug_obj.img)
-        exit ()
-
-        
-
         ###  オフセットする  (±10, 20, 40)
-        offset_img (aug_img_path, resized_img_path, resized_xml_path)
+        aug_obj.offset_img (0, 0)
 
-        ###  角度を変える (±5°)
-        rotate_img (aug_img_path, resized_img_path, resized_xml_path)
+        ### 回転させる
+        aug_obj.rotate_img (1)
 
-        
+        ### 画像とxmlを保存する
+        cv2.imwrite (aug_obj.img_path, aug_obj.img)
         
 
         
