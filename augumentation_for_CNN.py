@@ -344,6 +344,7 @@ class AugumentationObjects:
         print ("in modifying color tone")
         s_mag = aug_conf.s_mag_list[trans_flag_s_mag]
         v_mag = aug_conf.v_mag_list[trans_flag_v_mag]
+        print ("  s magnitude = {}, v magnitude = {}".format (s_mag, v_mag))
 
         img = self.img
         img_hsv = cv2.cvtColor (img, cv2.COLOR_BGR2HSV)
@@ -356,6 +357,39 @@ class AugumentationObjects:
 
         self.modify_img_path ('s_mag_{}_v_mag_{}_'.format (s_mag, v_mag))
         self.modify_xml_path ('s_mag_{}_v_mag_{}_'.format (s_mag, v_mag))
+
+    def modify_contrast (self, trans_flag_alpha, trans_flag_gamma):
+        print ("in modifying contrast")
+        if trans_flag_alpha == 0 or trans_flag_gamma == 0:
+            print ("  trans flag == 0, nothing to do")
+            return 0
+        else:
+            alpha = aug_conf.alpha_list[trans_flag_alpha]
+            gamma = aug_conf.gamma_list[trans_flag_gamma]
+            print ("  alpha = {}, gamma = {}".format (alpha, gamma))
+
+        self.img = self.img * alpha + gamma
+
+        self.modify_img_path ('alpha_{}_gamma_{}_'.format (alpha, gamma))
+        self.modify_xml_path ('alpha_{}_gamma_{}_'.format (alpha, gamma))
+
+    def add_gaussian_noize (self, trans_flag_sigma):
+        print ("in adding Gaussian noize")    
+        if trans_flag_sigma == 0:
+            print ("  Gaussian sigma == 0, nothing can be done")
+            return 0
+        else:
+            sigma = aug_conf.sigma_list[trans_flag_sigma]
+            print ("  sigma = {}".format (sigma))
+        row,col,ch= self.img.shape
+        mean = 0
+        gauss = np.random.normal (mean, sigma, (row,col,ch))
+        gauss = gauss.reshape (row, col, ch)
+        self.img = self.img + gauss
+        
+        self.modify_img_path ('gaussian_sigma_{}_'.format (sigma))
+        self.modify_xml_path ('gaussian_sigma_{}_'.format (sigma))  
+
 
 
 class BboxesInXML:
@@ -468,6 +502,13 @@ if __name__ == '__main__':
         aug_obj.add_blur (2)
         ###  彩度を変える
         aug_obj.modify_colour_tone (1, 2)
+
+        ###  コントラストを変える
+        aug_obj.modify_contrast (1, 2)
+
+        ###  ノイズを加える
+        aug_obj.add_gaussian_noize (2)
+
         cv2.imwrite (aug_obj.img_path, aug_obj.img)
         exit ()
 
@@ -479,14 +520,8 @@ if __name__ == '__main__':
         ###  角度を変える (±5°)
         rotate_img (aug_img_path, resized_img_path, resized_xml_path)
 
-        ###  コントラストを変える
-        modify_contrast (aug_img_path, resized_img_path, resized_xml_path)
-        
-        ###  ノイズを加える
-        add_gaussian_noize (aug_img_path, resized_img_path, resized_xml_path)
         
         
-
 
         
 
