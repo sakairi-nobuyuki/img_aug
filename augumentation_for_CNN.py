@@ -115,19 +115,13 @@ class AugumentationObjects:
 
     def sharpen_img (self, trans_flag):
         print ("in sharpening img, trans_flag", trans_flag)
-        if trans_flag == 0:
-            print ("  flag is 0, and nothing to do.")
-            return 0
-        else:
-            A = aug_conf.A_sharpness[trans_flag % 2]
-            print ("  flag is {}. A = {}.".format (trans_flag, A))
+        A = aug_conf.A_sharpness[trans_flag % 2]
+        print ("  flag is {}. A = {}.".format (trans_flag, A))
 
         ker = np.array (A, dtype=np.float32)
         self.img = cv2.filter2D (self.img, -1, ker)
         self.modify_img_path ('A_sharp_{}_'.format (A[1][1]))
         self.modify_xml_path ('A_sharp_{}_'.format (A[1][1]))
-
-        return 1
         
     def add_blur (self, trans_flag):
         print ("in img blur, trans_flag", trans_flag)
@@ -135,9 +129,6 @@ class AugumentationObjects:
             print ('  sharpness already done. nothing can be done with img blur. going to abort the process.')
             return 0
         k_blur = aug_conf.k_blur[trans_flag % len (aug_conf.k_blur)]
-        if k_blur == 0:
-            print ("  k_blur is 0, and nothing to do.")
-            return 0
         print ("  flag is {}. k_blur = {}.".format (trans_flag, k_blur))
 
         self.img = cv2.blur (self.img, ksize = (k_blur, k_blur))
@@ -149,9 +140,6 @@ class AugumentationObjects:
         print ("in modifying color tone")
         s_mag = aug_conf.s_mag_list[trans_flag_s_mag]
         v_mag = aug_conf.v_mag_list[trans_flag_v_mag]
-        if s_mag == 0 and v_mag == 0:
-            print ("  s magnitude = {}, v magnitude = {}. nothing can be done".format (s_mag, v_mag))
-            return 0
         print ("  s magnitude = {}, v magnitude = {}".format (s_mag, v_mag))
 
         img = self.img
@@ -171,9 +159,6 @@ class AugumentationObjects:
         alpha = aug_conf.alpha_list[trans_flag_alpha]
         gamma = aug_conf.gamma_list[trans_flag_gamma]
 
-        if alpha == 0 and gamma == 0:
-            print ("  trans flag == 0, nothing to do")
-            return 0
         print ("  alpha = {}, gamma = {}".format (alpha, gamma))
 
         self.img = self.img * alpha + gamma
@@ -184,8 +169,6 @@ class AugumentationObjects:
     def add_gaussian_noize (self, trans_flag_sigma):
         print ("in adding Gaussian noize")    
         sigma = aug_conf.sigma_list[trans_flag_sigma]
-        if sigma == 0:
-            print ("  Gaussian sigma == 0, nothing can be done")
         print ("  sigma = {}".format (sigma))
         row,col,ch= self.img.shape
         mean = 0
@@ -200,9 +183,6 @@ class AugumentationObjects:
         print ("in offsetting image")
         dx = trans_flag_dx
         dy = trans_flag_dy
-        if dx == 0 and dy == 0:
-            print ("  dx = {}, dy = {}. nothing to do".format (dx, dy))
-            return 0
         print ("  dx = {}, dy = {}.".format (dx, dy))
         
         img_w, img_h, _ = self.img.shape
@@ -222,18 +202,15 @@ class AugumentationObjects:
             bb_mod['y1'] = int (bb['y1']) + dy
             bb_mod['x2'] = int (bb['x2']) + dx
             bb_mod['y2'] = int (bb['y2']) + dy
-        self.xml_obj.save_geometrical_modification ('', '', self.xml_path)
+        #self.xml_obj.save_geometrical_modification ('', '', self.xml_path)
 
     def rotate_img (self, target_flag_dtheta):
         print ("in rotating image")
         dtheta = aug_conf.rotation_deg[target_flag_dtheta]
         if 'dx' in self.img_path or 'dy' in self.img_path:
             print ("  offset already done. rotation cannot be carried out.")
-        if dtheta == 0:
-            print ("  dtheta == 0. nothing can be done")
             return 0
-        else:   
-            print ("  dheta = {}".format (dtheta))
+        print ("  dheta = {}".format (dtheta))
         img_w, img_h, _ = self.img.shape
 
         center = (int (0.5 * img_w), int (0.5 * img_h))
@@ -267,7 +244,7 @@ class AugumentationObjects:
             bb_mod['y1'] = np.max (np.mean ([r1_mod[0][1], r2_mod[0][1]]), 0)
             bb_mod['x2'] = np.max (np.mean ([r2_mod[0][0], r3_mod[0][0]]), 0)
             bb_mod['y2'] = np.max (np.mean ([r3_mod[0][1], r4_mod[0][1]]),  0)
-        self.xml_obj.save_geometrical_modification ("", "", self.xml_path)
+        
 
 
 class BboxesInXML:
@@ -368,43 +345,51 @@ if __name__ == '__main__':
         shutil.copy (resized_img_path, aug_img_path)
         shutil.copy (resized_xml_path, aug_img_path)
 
-        ### augumentation用のオブジェクトを定義する
-        aug_obj = AugumentationObjects (aug_img_path, resized_img_path, resized_xml_path)
+        n_aug = np.random.randint (0, aug_conf.max_n_aug)
+        print ("For {}, {} times augumentation shall be carried out.".format (os.path.basename (img_path), n_aug))
 
-        ### 乱数でaugmentationの数を選ぶようにする
+        ### 乱数でaugmentationするしないと、パラメータを選ぶ。
+        for i_aug in range (0, n_aug):
+            ### augumentation用のオブジェクトを定義する
+            aug_obj = AugumentationObjects (aug_img_path, resized_img_path, resized_xml_path)
+            print ("init augumentation object")
 
+            print ("the {} th augumentation for {}".format (i_aug, os.path.basename (img_path)))
+            ###  シャープネス
+            if  np.random.randint (0, aug_conf.prob_like_sharpness) != 0:
+                aug_obj.sharpen_img (np.random.randint (0, len (aug_conf.A_sharpness)))
         
-        ###  シャープネス
-        aug_obj.sharpen_img (0)
-        
-        ###  ボケ        
-        aug_obj.add_blur (2)
-        ###  彩度を変える
-        aug_obj.modify_colour_tone (1, 2)
+            ###  ボケ        
+            if  np.random.randint (0, aug_conf.prob_like_blur) != 0:
+                aug_obj.add_blur (np.random.randint (0, len (aug_conf.k_blur)))
 
-        ###  コントラストを変える
-        aug_obj.modify_contrast (1, 2)
+            ###  彩度を変える
+            if  np.random.randint (0, aug_conf.prob_like_colour_tone) != 0:
+                aug_obj.modify_colour_tone (np.random.randint (0, len (aug_conf.s_mag_list)), np.random.randint (0, len (aug_conf.v_mag_list)))
 
-        ###  ノイズを加える
-        aug_obj.add_gaussian_noize (2)
+            ###  コントラストを変える
+            if  np.random.randint (0, aug_conf.prob_like_contrast) != 0:
+                aug_obj.modify_contrast (np.random.randint (0, len (aug_conf.alpha_list)), np.random.randint (0, len (aug_conf.gamma_list)))
 
-        ###  オフセットする  (±10, 20, 40)
-        aug_obj.offset_img (0, 0)
+            ###  ノイズを加える
+            if  np.random.randint (0, aug_conf.prob_like_noize) != 0:
+                aug_obj.add_gaussian_noize (np.random.randint (0, len (aug_conf.sigma_list)))
 
-        ### 回転させる
-        aug_obj.rotate_img (1)
+            ###  オフセットする  (±10, 20, 40)
+            if  np.random.randint (0, aug_conf.prob_like_offset) != 0:
+                aug_obj.offset_img (np.random.randint (0, len (aug_conf.offset_dx)), np.random.randint (0, len (aug_conf.offset_dy)))
 
-        ### 画像とxmlを保存する
-        ### xmlは、xmlのデータがaffine transformで変わるのと、その保存は別にやらないといけない。！！！！
-        cv2.imwrite (aug_obj.img_path, aug_obj.img)
+            ### 回転させる
+            if  np.random.randint (0, aug_conf.prob_like_rot) != 0:
+                aug_obj.rotate_img (np.random.randint (0, len (aug_conf.rotation_deg)))
+
+            ### 画像とxmlを保存する
+            ### xmlは、xmlのデータがaffine transformで変わるのと、その保存は別にやらないといけない。！！！！
+            cv2.imwrite (aug_obj.img_path, aug_obj.img)
+            aug_obj.xml_obj.save_geometrical_modification ('', '', aug_obj.xml_path)
         exit ()
-        
 
-        
 
-        ###  画像を歪ませる
-    
-    #### 画像リストを作る
 
         
 
