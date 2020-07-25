@@ -17,6 +17,7 @@ H_SIZE = 256
 def obtain_imgs_path_list (img_dir_path = None):
     #img_path_list = ['annotation/test/nanase-01.jpg']
     img_path_list = glob.glob ('annotation/original/**/*.jpg')
+    img_path_list = glob.glob ('annotation/original/**/*.png')
     pprint.pprint (img_path_list)
     return img_path_list
 
@@ -25,11 +26,15 @@ def obtain_imgs_and_xml_path_list (img_dir_path = None):
     if img_dir_path != None:
         img_path_list = glob.glob ('{}/**/*.jpg'.format (img_dir_path), recursive = True)
         xml_path_list = [item.replace ('jpg', 'xml') for item in img_path_list]
+        img_path_list = glob.glob ('{}/**/*.png'.format (img_dir_path), recursive = True)
+        xml_path_list = [item.replace ('png', 'xml') for item in img_path_list]
     else:
         img_path_list = glob.glob ('./annotation/original/**/*.jpg', recursive = True)
         xml_path_list = [item.replace ('jpg', 'xml') for item in img_path_list]
+        img_path_list = glob.glob ('./annotation/original/**/*.png', recursive = True)
+        xml_path_list = [item.replace ('png', 'xml') for item in img_path_list]
 
-    #pprint.pprint (img_path_list)
+    pprint.pprint (img_path_list)
     #print ("open: ", img_path_list[0], os.path.exists (img_path_list[0]))
     return img_path_list, xml_path_list
 
@@ -387,7 +392,7 @@ if __name__ == '__main__':
             ### xmlは、xmlのデータがaffine transformで変わるのと、その保存は別にやらないといけない。！！！！
             cv2.imwrite (aug_obj.img_path, aug_obj.img)
             aug_obj.xml_obj.save_geometrical_modification ('', '', aug_obj.xml_path)
-        exit ()
+#        exit ()
 
 
 
