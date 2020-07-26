@@ -57,7 +57,8 @@ def rezise_img_and_xml (target_dir_path, img_path, xml_path):
     print ("img path: ", img_path)
     img = cv2.imread (img_path)
     w, h, c = img.shape
-    scale = H_SIZE / h
+    #scale = H_SIZE / h
+    scale = 1
     print ("img size: ({}, {}), scale: {}".format (w, h, scale))
     img_path_mod = os.path.join (target_dir_path, interrim_name + 'resize_' + os.path.basename (img_path))
     img_mod = cv2.resize (img, fx = scale,  fy = scale, dsize = None)

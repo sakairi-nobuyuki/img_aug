@@ -76,7 +76,9 @@ if __name__ == '__main__':
                 print (img_path, int (float (bboxes['x1'])), int (float (bboxes['y1'])), int (float (bboxes['x2'])), int (float (bboxes['y2'])), bboxes['attr'])
                 dataset_data.append ([img_path, int (float (bboxes['x1'])), int (float (bboxes['y1'])), int (float (bboxes['x2'])), int (float (bboxes['y2'])), bboxes['attr']])
                 #dataset_data.append ([img_path, int (bboxes['x1']), int (bboxes['y1']), int (bboxes['x2']), int (bboxes['y2']), bboxes['attr']])
-            
+            #if bboxes['attr'] == 'plumng':
+            #    print (img_path, int (float (bboxes['x1'])), int (float (bboxes['y1'])), int (float (bboxes['x2'])), int (float (bboxes['y2'])), bboxes['attr'])
+            #    exit ()
                 
                 #exit ()
     pprint.pprint (dataset_data)
